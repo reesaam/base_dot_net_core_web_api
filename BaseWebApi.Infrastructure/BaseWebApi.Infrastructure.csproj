@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BaseWebApi.Application\BaseWebApi.Application.csproj" />
+    <ProjectReference Include="..\BaseWebApi.Domain\BaseWebApi.Domain.csproj" />
+    <ProjectReference Include="..\BaseWebApi.Shared\BaseWebApi.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.Elasticsearch" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
+    <PackageReference Include="Confluent.Kafka" Version="2.12.0" />
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.1" />
+    <PackageReference Include="Minio" Version="6.0.5" />
+    <PackageReference Include="NEST" Version="7.17.5" />
+    <PackageReference Include="protobuf-net.BuildTools" Version="3.2.52">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="protobuf-net.Grpc.Reflection" Version="1.2.2" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.9.32" />
+  </ItemGroup>
+
+  <Target Name="GenerateGrpcProtos" AfterTargets="Build" Condition="'$(GenerateGrpcProtos)' == 'true'">
+    <PropertyGroup>
+      <_ProtoOutDir Condition="'$(ProtoOutDir)' == ''">$(MSBuildThisFileDirectory)..\BaseWebApi.Api\Grpc\Generated</_ProtoOutDir>
+    </PropertyGroup>
+    <Message Importance="High" Text="Proto generation is performed at Api startup via ProtoSchemaGenerator (GENERATE_PROTOS=true). Output: $(_ProtoOutDir)" />
+  </Target>
+
+</Project>

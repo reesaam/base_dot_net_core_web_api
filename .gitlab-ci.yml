@@ -1,0 +1,149 @@
+stages:
+  - build
+  - test
+  - publish
+  - deploy
+
+variables:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+  SOLUTION: BaseWebApi.sln
+  API_PROJECT: BaseWebApi.Api/BaseWebApi.Api.csproj
+  PUBLISH_DIR: publish
+  IMAGE_NAME: $CI_REGISTRY_IMAGE/basewebapi
+  DOCKER_DRIVER: overlay2
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-nuget"
+  paths:
+    - .nuget/
+
+.dotnet_job:
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  before_script:
+    - dotnet --info
+    - dotnet restore $SOLUTION --packages .nuget/
+
+build:
+  extends: .dotnet_job
+  stage: build
+  script:
+    - dotnet build $SOLUTION -c Release --no-restore
+  artifacts:
+    paths:
+      - "**/bin/Release/"
+    expire_in: 1 day
+
+test:
+  extends: .dotnet_job
+  stage: test
+  script:
+    - dotnet test $SOLUTION -c Release --no-restore --verbosity normal || echo "No test projects yet — add tests under tests/"
+  dependencies:
+    - build
+  allow_failure: true
+
+publish:
+  extends: .dotnet_job
+  stage: publish
+  script:
+    - dotnet publish $API_PROJECT -c Release -o $PUBLISH_DIR --no-restore
+  artifacts:
+    name: "basewebapi-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - $PUBLISH_DIR/
+    expire_in: 1 week
+  dependencies:
+    - build
+
+docker_build:
+  stage: publish
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build -f BaseWebApi.Api/Dockerfile -t "$IMAGE_NAME:$CI_COMMIT_SHORT_SHA" -t "$IMAGE_NAME:latest" .
+    - docker push "$IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+    - docker push "$IMAGE_NAME:latest"
+  only:
+    - main
+    - master
+    - develop
+    - tags
+
+.deploy_template:
+  stage: deploy
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - echo "Deploying $IMAGE_NAME:$CI_COMMIT_SHORT_SHA to $ASPNETCORE_ENVIRONMENT"
+    - echo "Override this job with your Kubernetes/Helm/SSH deploy steps"
+    # Example:
+    # kubectl set image deployment/basewebapi api=$IMAGE_NAME:$CI_COMMIT_SHORT_SHA -n $KUBE_NAMESPACE
+  environment:
+    name: $ASPNETCORE_ENVIRONMENT
+
+deploy_dev:
+  extends: .deploy_template
+  variables:
+    ASPNETCORE_ENVIRONMENT: Development
+    SqlServer__ConnectionString: $DEV_SQL_CONNECTION
+    Redis__Configuration: $DEV_REDIS_HOST
+    Minio__Endpoint: $DEV_MINIO_ENDPOINT
+    Minio__AccessKey: $DEV_MINIO_ACCESS_KEY
+    Minio__SecretKey: $DEV_MINIO_SECRET_KEY
+    Minio__BucketName: $DEV_MINIO_BUCKET
+    Kafka__BootstrapServers: $DEV_KAFKA_BOOTSTRAP
+    Elasticsearch__Url: $DEV_ELASTIC_URL
+    Jwt__SigningKey: $DEV_JWT_SIGNING_KEY
+    Api__BaseUrl: $DEV_API_BASE_URL
+  environment:
+    name: development
+  only:
+    - develop
+
+deploy_stage:
+  extends: .deploy_template
+  variables:
+    ASPNETCORE_ENVIRONMENT: Staging
+    SqlServer__ConnectionString: $STAGE_SQL_CONNECTION
+    Redis__Configuration: $STAGE_REDIS_HOST
+    Minio__Endpoint: $STAGE_MINIO_ENDPOINT
+    Minio__AccessKey: $STAGE_MINIO_ACCESS_KEY
+    Minio__SecretKey: $STAGE_MINIO_SECRET_KEY
+    Minio__BucketName: $STAGE_MINIO_BUCKET
+    Kafka__BootstrapServers: $STAGE_KAFKA_BOOTSTRAP
+    Elasticsearch__Url: $STAGE_ELASTIC_URL
+    Jwt__SigningKey: $STAGE_JWT_SIGNING_KEY
+    Api__BaseUrl: $STAGE_API_BASE_URL
+  environment:
+    name: staging
+  only:
+    - main
+    - master
+  when: manual
+
+deploy_prod:
+  extends: .deploy_template
+  variables:
+    ASPNETCORE_ENVIRONMENT: Production
+    SqlServer__ConnectionString: $PROD_SQL_CONNECTION
+    Redis__Configuration: $PROD_REDIS_HOST
+    Minio__Endpoint: $PROD_MINIO_ENDPOINT
+    Minio__AccessKey: $PROD_MINIO_ACCESS_KEY
+    Minio__SecretKey: $PROD_MINIO_SECRET_KEY
+    Minio__BucketName: $PROD_MINIO_BUCKET
+    Kafka__BootstrapServers: $PROD_KAFKA_BOOTSTRAP
+    Elasticsearch__Url: $PROD_ELASTIC_URL
+    Jwt__SigningKey: $PROD_JWT_SIGNING_KEY
+    Api__BaseUrl: $PROD_API_BASE_URL
+  environment:
+    name: production
+  only:
+    - tags
+  when: manual

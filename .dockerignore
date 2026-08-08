@@ -1,0 +1,14 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/logs
+**/.idea
+**/TestResults
+**/publish
+**/.nuget
+**/node_modules
+*.user
+*.suo
+.env
+.env.*

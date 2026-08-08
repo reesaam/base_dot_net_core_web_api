@@ -1,0 +1,60 @@
+syntax = "proto3";
+package BaseWebApi.Application.Grpc;
+import "google/protobuf/empty.proto";
+import "protobuf-net/bcl.proto"; // schema for protobuf-net's handling of core .NET types
+
+message CreateItemRequestDto {
+   string Name = 1;
+   string Description = 2;
+   string Priority = 3;
+}
+message DateTimeOffset {
+}
+message DeleteItemRequestDto {
+   .bcl.Guid Id = 1; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+}
+message GetItemRequestDto {
+   .bcl.Guid Id = 1; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+}
+message ItemDto {
+   .bcl.Guid Id = 1; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+   string Name = 2;
+   string Description = 3;
+   string Status = 4;
+   string Priority = 5;
+   string AttachmentObjectKey = 6;
+   DateTimeOffset CreatedAt = 7;
+   DateTimeOffset UpdatedAt = 8;
+}
+message ListItemsRequestDto {
+   int32 Page = 1; // default value could not be applied: 1
+   int32 PageSize = 2; // default value could not be applied: 20
+   string Search = 3;
+   string Status = 4;
+   string SortBy = 5;
+   string SortDirection = 6;
+}
+message ListItemsResponseDto {
+   repeated ItemDto Items = 1;
+   int32 Page = 2;
+   int32 PageSize = 3;
+   int64 TotalCount = 4;
+   int32 TotalPages = 5;
+}
+message UpdateItemGrpcRequestDto {
+   .bcl.Guid Id = 1; // default value could not be applied: 00000000-0000-0000-0000-000000000000
+   UpdateItemRequestDto Body = 2;
+}
+message UpdateItemRequestDto {
+   string Name = 1;
+   string Description = 2;
+   string Status = 3;
+   string Priority = 4;
+}
+service ItemGrpcService {
+   rpc CreateItem (CreateItemRequestDto) returns (ItemDto);
+   rpc DeleteItem (DeleteItemRequestDto) returns (.google.protobuf.Empty);
+   rpc GetItem (GetItemRequestDto) returns (ItemDto);
+   rpc ListItems (ListItemsRequestDto) returns (ListItemsResponseDto);
+   rpc UpdateItem (UpdateItemGrpcRequestDto) returns (ItemDto);
+}

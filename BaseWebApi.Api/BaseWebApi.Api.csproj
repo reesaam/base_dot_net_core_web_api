@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
+    <PackageReference Include="Grpc.AspNetCore.Web" Version="2.71.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+    <PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="1.2.2" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.9.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BaseWebApi.Application\BaseWebApi.Application.csproj" />
+    <ProjectReference Include="..\BaseWebApi.Infrastructure\BaseWebApi.Infrastructure.csproj" />
+    <ProjectReference Include="..\BaseWebApi.Domain\BaseWebApi.Domain.csproj" />
+    <ProjectReference Include="..\BaseWebApi.Shared\BaseWebApi.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Grpc\Generated\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
