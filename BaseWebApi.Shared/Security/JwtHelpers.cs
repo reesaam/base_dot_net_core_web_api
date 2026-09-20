@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using BaseWebApi.Shared.Constants;
 
 namespace BaseWebApi.Shared.Security;
 
@@ -10,19 +11,13 @@ public static class JwtHelpers
 {
     public static ClaimsPrincipal? ReadPrincipalWithoutValidation(string token)
     {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return null;
-        }
+        if (string.IsNullOrWhiteSpace(token))return null;
 
         var handler = new JwtSecurityTokenHandler();
-        if (!handler.CanReadToken(token))
-        {
-            return null;
-        }
+        if (!handler.CanReadToken(token)) return null;
 
         var jwt = handler.ReadJwtToken(token);
-        var identity = new ClaimsIdentity(jwt.Claims, authenticationType: "Bearer");
+        var identity = new ClaimsIdentity(jwt.Claims, authenticationType: AppConstants.Auth.BearerScheme);
         return new ClaimsPrincipal(identity);
     }
 
@@ -32,9 +27,7 @@ public static class JwtHelpers
 
     public static Guid? GetUserId(ClaimsPrincipal? principal)
     {
-        var value = GetClaim(principal, ClaimTypes.NameIdentifier)
-                    ?? GetClaim(principal, JwtRegisteredClaimNames.Sub);
-
+        var value = GetClaim(principal, ClaimTypes.NameIdentifier) ?? GetClaim(principal, JwtRegisteredClaimNames.Sub);
         return Guid.TryParse(value, out var id) ? id : null;
     }
 
@@ -43,6 +36,5 @@ public static class JwtHelpers
         ?? GetClaim(principal, JwtRegisteredClaimNames.Email);
 
     public static IReadOnlyList<string> GetRoles(ClaimsPrincipal? principal) =>
-        principal?.FindAll(ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray()
-        ?? [];
+        principal?.FindAll(ClaimTypes.Role).Select(c => c.Value).Distinct().ToArray() ?? [];
 }
