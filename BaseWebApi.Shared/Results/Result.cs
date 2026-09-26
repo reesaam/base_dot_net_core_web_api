@@ -8,14 +8,10 @@ public class Result
     protected Result(bool isSuccess, Error error)
     {
         if (isSuccess && error != Error.None)
-        {
             throw new InvalidOperationException("Successful results cannot carry an error.");
-        }
 
         if (!isSuccess && error == Error.None)
-        {
             throw new InvalidOperationException("Failed results must carry an error.");
-        }
 
         IsSuccess = isSuccess;
         Error = error;
@@ -38,8 +34,7 @@ public class Result<T> : Result
 {
     private readonly T? _value;
 
-    private Result(T? value, bool isSuccess, Error error)
-        : base(isSuccess, error)
+    private Result(T? value, bool isSuccess, Error error) : base(isSuccess, error)
     {
         _value = value;
     }
@@ -49,7 +44,7 @@ public class Result<T> : Result
         : throw new InvalidOperationException("Cannot access Value on a failed result.");
 
     public static Result<T> Success(T value) => new(value, true, Error.None);
-    public static new Result<T> Failure(Error error) => new(default, false, error);
+    public new static Result<T> Failure(Error error) => new(default, false, error);
 
     public static implicit operator Result<T>(T value) => Success(value);
 }

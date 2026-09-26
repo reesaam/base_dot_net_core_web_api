@@ -13,25 +13,14 @@ public static class StringExtensions
 
     public static string Truncate(this string value, int maxLength, string suffix = "…")
     {
-        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
-        {
-            return value;
-        }
-
-        if (maxLength <= suffix.Length)
-        {
-            return value[..maxLength];
-        }
-
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength) return value;
+        if (maxLength <= suffix.Length) return value[..maxLength];
         return value[..(maxLength - suffix.Length)] + suffix;
     }
 
     public static string ToSlug(this string value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return string.Empty;
-        }
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
 
         var normalized = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder(normalized.Length);
@@ -39,11 +28,7 @@ public static class StringExtensions
         foreach (var ch in normalized)
         {
             var category = CharUnicodeInfo.GetUnicodeCategory(ch);
-            if (category == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
+            if (category == UnicodeCategory.NonSpacingMark) continue;
             builder.Append(char.IsLetterOrDigit(ch) ? ch : '-');
         }
 

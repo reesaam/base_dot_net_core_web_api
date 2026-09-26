@@ -22,10 +22,7 @@ public static class CollectionExtensions
 
     public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> source, int size)
     {
-        if (size <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(size));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
 
         var batch = new List<T>(size);
         foreach (var item in source)

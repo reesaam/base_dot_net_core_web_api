@@ -9,13 +9,10 @@ public static class EnumExtensions
         where TEnum : struct, Enum
     {
         result = default;
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(input)) return false;
 
-        return Enum.TryParse(input.Replace(' ', '_'), ignoreCase: true, out result)
-               || Enum.TryParse(input, ignoreCase: true, out result);
+        return Enum.TryParse(input.Replace(' ', '_'), ignoreCase: true, out result) ||
+               Enum.TryParse(input, ignoreCase: true, out result);
     }
 
     public static IReadOnlyList<TEnum> GetValues<TEnum>()

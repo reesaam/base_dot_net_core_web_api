@@ -36,31 +36,15 @@ public interface IItemAppService
         CancellationToken cancellationToken = default);
 }
 
-public sealed class ItemAppService : IItemAppService
+public sealed class ItemAppService(
+    IEfRepository<Item> items,
+    ICacheService cache,
+    IEventPublisher publisher,
+    ISearchService search,
+    IObjectStorage storage,
+    ILogger<ItemAppService> logger)
+    : IItemAppService
 {
-    private readonly IEfRepository<Item> _items;
-    private readonly ICacheService _cache;
-    private readonly IEventPublisher _publisher;
-    private readonly ISearchService _search;
-    private readonly IObjectStorage _storage;
-    private readonly ILogger<ItemAppService> _logger;
-
-    public ItemAppService(
-        IEfRepository<Item> items,
-        ICacheService cache,
-        IEventPublisher publisher,
-        ISearchService search,
-        IObjectStorage storage,
-        ILogger<ItemAppService> logger)
-    {
-        _items = items;
-        _cache = cache;
-        _publisher = publisher;
-        _search = search;
-        _storage = storage;
-        _logger = logger;
-    }
-
     public async Task<Result<PaginationResult<ItemDto>>> ListAsync(
         ListItemsRequestDto request,
         CancellationToken cancellationToken = default)
@@ -69,7 +53,7 @@ public sealed class ItemAppService : IItemAppService
         var status = QueryHelpers.ParseStatus(request.Status);
         var sortDirection = QueryHelpers.ParseSortDirection(request.SortDirection);
 
-        var paged = await _items.GetPagedAsync(
+        var paged = await items.GetPagedAsync(
             item => !item.IsDeleted
                     && (status == null || item.Status == status)
                     && (string.IsNullOrWhiteSpace(request.Search)
@@ -93,20 +77,14 @@ public sealed class ItemAppService : IItemAppService
     public async Task<Result<ItemDto>> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"{AppConstants.Cache.ItemPrefix}{id:N}";
-        var cached = await _cache.GetAsync<ItemDto>(cacheKey, cancellationToken);
-        if (cached is not null)
-        {
-            return Result.Success(cached);
-        }
+        var cached = await cache.GetAsync<ItemDto>(cacheKey, cancellationToken);
+        if (cached is not null) return Result.Success(cached);
 
-        var item = await _items.GetByIdAsync(id, cancellationToken);
-        if (item is null || item.IsDeleted)
-        {
-            return Result.Failure<ItemDto>(Error.NotFound($"Item '{id}' was not found."));
-        }
+        var item = await items.GetByIdAsync(id, cancellationToken);
+        if (item is null || item.IsDeleted) return Result.Failure<ItemDto>(Error.NotFound($"Item '{id}' was not found."));
 
         var dto = item.ToDto();
-        await _cache.SetAsync(cacheKey, dto, AppConstants.Cache.DefaultTtl, cancellationToken);
+        await cache.SetAsync(cacheKey, dto, AppConstants.Cache.DefaultTtl, cancellationToken);
         return Result.Success(dto);
     }
 
@@ -117,21 +95,21 @@ public sealed class ItemAppService : IItemAppService
         var priority = QueryHelpers.ParsePriority(request.Priority);
         var item = Item.Create(request.Name, request.Description, priority);
 
-        await _items.AddAsync(item, cancellationToken);
-        await _items.SaveChangesAsync(cancellationToken);
+        await items.AddAsync(item, cancellationToken);
+        await items.SaveChangesAsync(cancellationToken);
 
         var dto = item.ToDto();
 
         // Redis cache example
-        await _cache.SetAsync($"{AppConstants.Cache.ItemPrefix}{item.Id:N}", dto, AppConstants.Cache.DefaultTtl, cancellationToken);
+        await cache.SetAsync($"{AppConstants.Cache.ItemPrefix}{item.Id:N}", dto, AppConstants.Cache.DefaultTtl, cancellationToken);
 
         // Kafka publish example
-        await _publisher.PublishAsync(AppConstants.Messaging.ItemCreatedTopic, dto, cancellationToken);
+        await publisher.PublishAsync(AppConstants.Messaging.ItemCreatedTopic, dto, cancellationToken);
 
         // ElasticSearch indexing example
-        await _search.IndexAsync(AppConstants.Search.ItemsIndex, item.Id.ToString("N"), dto, cancellationToken);
+        await search.IndexAsync(AppConstants.Search.ItemsIndex, item.Id.ToString("N"), dto, cancellationToken);
 
-        _logger.LogInformation("Created item {ItemId}", item.Id);
+        logger.LogInformation("Created item {ItemId}", item.Id);
         return Result.Success(dto);
     }
 
@@ -140,7 +118,7 @@ public sealed class ItemAppService : IItemAppService
         UpdateItemRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        var item = await _items.GetByIdAsync(id, cancellationToken);
+        var item = await items.GetByIdAsync(id, cancellationToken);
         if (item is null || item.IsDeleted)
         {
             return Result.Failure<ItemDto>(Error.NotFound($"Item '{id}' was not found."));
@@ -153,32 +131,32 @@ public sealed class ItemAppService : IItemAppService
 
         var priority = QueryHelpers.ParsePriority(request.Priority, item.Priority);
         item.Update(request.Name, request.Description, status, priority);
-        _items.Update(item);
-        await _items.SaveChangesAsync(cancellationToken);
+        items.Update(item);
+        await items.SaveChangesAsync(cancellationToken);
 
         var dto = item.ToDto();
-        await _cache.SetAsync($"{AppConstants.Cache.ItemPrefix}{id:N}", dto, AppConstants.Cache.DefaultTtl, cancellationToken);
-        await _publisher.PublishAsync(AppConstants.Messaging.ItemUpdatedTopic, dto, cancellationToken);
-        await _search.IndexAsync(AppConstants.Search.ItemsIndex, id.ToString("N"), dto, cancellationToken);
+        await cache.SetAsync($"{AppConstants.Cache.ItemPrefix}{id:N}", dto, AppConstants.Cache.DefaultTtl, cancellationToken);
+        await publisher.PublishAsync(AppConstants.Messaging.ItemUpdatedTopic, dto, cancellationToken);
+        await search.IndexAsync(AppConstants.Search.ItemsIndex, id.ToString("N"), dto, cancellationToken);
 
         return Result.Success(dto);
     }
 
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var item = await _items.GetByIdAsync(id, cancellationToken);
+        var item = await items.GetByIdAsync(id, cancellationToken);
         if (item is null || item.IsDeleted)
         {
             return Result.Failure(Error.NotFound($"Item '{id}' was not found."));
         }
 
         item.SoftDelete();
-        _items.Update(item);
-        await _items.SaveChangesAsync(cancellationToken);
+        items.Update(item);
+        await items.SaveChangesAsync(cancellationToken);
 
-        await _cache.RemoveAsync($"{AppConstants.Cache.ItemPrefix}{id:N}", cancellationToken);
-        await _publisher.PublishAsync(AppConstants.Messaging.ItemDeletedTopic, new { Id = id }, cancellationToken);
-        await _search.DeleteAsync(AppConstants.Search.ItemsIndex, id.ToString("N"), cancellationToken);
+        await cache.RemoveAsync($"{AppConstants.Cache.ItemPrefix}{id:N}", cancellationToken);
+        await publisher.PublishAsync(AppConstants.Messaging.ItemDeletedTopic, new { Id = id }, cancellationToken);
+        await search.DeleteAsync(AppConstants.Search.ItemsIndex, id.ToString("N"), cancellationToken);
 
         return Result.Success();
     }
@@ -190,7 +168,7 @@ public sealed class ItemAppService : IItemAppService
         Stream content,
         CancellationToken cancellationToken = default)
     {
-        var item = await _items.GetByIdAsync(id, cancellationToken);
+        var item = await items.GetByIdAsync(id, cancellationToken);
         if (item is null || item.IsDeleted)
         {
             return Result.Failure<ItemDto>(Error.NotFound($"Item '{id}' was not found."));
@@ -202,14 +180,14 @@ public sealed class ItemAppService : IItemAppService
         }
 
         var objectKey = FileHelpers.BuildObjectKey("items", fileName);
-        await _storage.UploadAsync(objectKey, content, contentType, cancellationToken);
+        await storage.UploadAsync(objectKey, content, contentType, cancellationToken);
 
         item.SetAttachment(objectKey);
-        _items.Update(item);
-        await _items.SaveChangesAsync(cancellationToken);
+        items.Update(item);
+        await items.SaveChangesAsync(cancellationToken);
 
         var dto = item.ToDto();
-        await _cache.SetAsync($"{AppConstants.Cache.ItemPrefix}{id:N}", dto, AppConstants.Cache.DefaultTtl, cancellationToken);
+        await cache.SetAsync($"{AppConstants.Cache.ItemPrefix}{id:N}", dto, AppConstants.Cache.DefaultTtl, cancellationToken);
         return Result.Success(dto);
     }
 }

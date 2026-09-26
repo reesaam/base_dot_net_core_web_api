@@ -8,18 +8,13 @@ using Minio.DataModel.Args;
 
 namespace BaseWebApi.Infrastructure.Storage;
 
-public sealed class MinioObjectStorage : IObjectStorage
+public sealed class MinioObjectStorage(
+    IMinioClient client,
+    IOptions<MinioOptions> options,
+    ILogger<MinioObjectStorage> logger)
+    : IObjectStorage
 {
-    private readonly IMinioClient _client;
-    private readonly MinioOptions _options;
-    private readonly ILogger<MinioObjectStorage> _logger;
-
-    public MinioObjectStorage(IMinioClient client, IOptions<MinioOptions> options, ILogger<MinioObjectStorage> logger)
-    {
-        _client = client;
-        _options = options.Value;
-        _logger = logger;
-    }
+    private readonly MinioOptions _options = options.Value;
 
     public async Task<string> UploadAsync(
         string objectKey,
@@ -36,8 +31,8 @@ public sealed class MinioObjectStorage : IObjectStorage
             .WithObjectSize(content.CanSeek ? content.Length : -1)
             .WithContentType(contentType);
 
-        await _client.PutObjectAsync(putArgs, cancellationToken);
-        _logger.LogInformation("Uploaded object {ObjectKey} to bucket {Bucket}", objectKey, _options.BucketName);
+        await client.PutObjectAsync(putArgs, cancellationToken);
+        logger.LogInformation("Uploaded object {ObjectKey} to bucket {Bucket}", objectKey, _options.BucketName);
         return objectKey;
     }
 
@@ -49,7 +44,7 @@ public sealed class MinioObjectStorage : IObjectStorage
             .WithObject(objectKey)
             .WithCallbackStream(stream => stream.CopyTo(memory));
 
-        await _client.GetObjectAsync(args, cancellationToken);
+        await client.GetObjectAsync(args, cancellationToken);
         memory.Position = 0;
         return memory;
     }
@@ -60,7 +55,7 @@ public sealed class MinioObjectStorage : IObjectStorage
             .WithBucket(_options.BucketName)
             .WithObject(objectKey);
 
-        await _client.RemoveObjectAsync(args, cancellationToken);
+        await client.RemoveObjectAsync(args, cancellationToken);
     }
 
     public async Task<string> GetPresignedUrlAsync(
@@ -73,13 +68,13 @@ public sealed class MinioObjectStorage : IObjectStorage
             .WithObject(objectKey)
             .WithExpiry((int)expiry.TotalSeconds);
 
-        return await _client.PresignedGetObjectAsync(args);
+        return await client.PresignedGetObjectAsync(args);
     }
 
     private async Task EnsureBucketAsync(CancellationToken cancellationToken)
     {
         var existsArgs = new BucketExistsArgs().WithBucket(_options.BucketName);
-        var exists = await _client.BucketExistsAsync(existsArgs, cancellationToken);
+        var exists = await client.BucketExistsAsync(existsArgs, cancellationToken);
         if (exists)
         {
             return;
@@ -88,7 +83,7 @@ public sealed class MinioObjectStorage : IObjectStorage
         try
         {
             var makeArgs = new MakeBucketArgs().WithBucket(_options.BucketName);
-            await _client.MakeBucketAsync(makeArgs, cancellationToken);
+            await client.MakeBucketAsync(makeArgs, cancellationToken);
         }
         catch (Exception ex)
         {

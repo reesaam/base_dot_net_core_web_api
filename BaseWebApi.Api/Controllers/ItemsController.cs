@@ -9,15 +9,8 @@ namespace BaseWebApi.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public sealed class ItemsController : ControllerBase
+public sealed class ItemsController(IItemAppService items) : ControllerBase
 {
-    private readonly IItemAppService _items;
-
-    public ItemsController(IItemAppService items)
-    {
-        _items = items;
-    }
-
     /// <summary>GET /api/items</summary>
     [HttpGet]
     [AllowAnonymous]
@@ -25,7 +18,7 @@ public sealed class ItemsController : ControllerBase
         [FromQuery] ListItemsRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await _items.ListAsync(request, cancellationToken);
+        var result = await items.ListAsync(request, cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : MapError(result.Error);
     }
 
@@ -34,7 +27,7 @@ public sealed class ItemsController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<ItemDto>> GetItem(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _items.GetAsync(id, cancellationToken);
+        var result = await items.GetAsync(id, cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : MapError(result.Error);
     }
 
@@ -45,7 +38,7 @@ public sealed class ItemsController : ControllerBase
         [FromBody] CreateItemRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await _items.CreateAsync(request, cancellationToken);
+        var result = await items.CreateAsync(request, cancellationToken);
         if (result.IsFailure)
         {
             return MapError(result.Error);
@@ -65,7 +58,7 @@ public sealed class ItemsController : ControllerBase
     {
         FileHelpers.ValidateUpload(file);
         await using var stream = file.OpenReadStream();
-        var result = await _items.UploadAttachmentAsync(
+        var result = await items.UploadAttachmentAsync(
             id,
             file.FileName,
             file.ContentType,
@@ -83,7 +76,7 @@ public sealed class ItemsController : ControllerBase
         [FromBody] UpdateItemRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await _items.UpdateAsync(id, request, cancellationToken);
+        var result = await items.UpdateAsync(id, request, cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : MapError(result.Error);
     }
 
@@ -92,7 +85,7 @@ public sealed class ItemsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> DeleteItem(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _items.DeleteAsync(id, cancellationToken);
+        var result = await items.DeleteAsync(id, cancellationToken);
         return result.IsSuccess ? NoContent() : MapError(result.Error);
     }
 

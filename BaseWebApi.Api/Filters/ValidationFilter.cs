@@ -7,15 +7,8 @@ namespace BaseWebApi.Api.Filters;
 /// <summary>
 /// Runs FluentValidation validators for action arguments automatically.
 /// </summary>
-public sealed class ValidationFilter : IAsyncActionFilter
+public sealed class ValidationFilter(IServiceProvider serviceProvider) : IAsyncActionFilter
 {
-    private readonly IServiceProvider _serviceProvider;
-
-    public ValidationFilter(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-    }
-
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         foreach (var argument in context.ActionArguments.Values)
@@ -26,7 +19,7 @@ public sealed class ValidationFilter : IAsyncActionFilter
             }
 
             var validatorType = typeof(IValidator<>).MakeGenericType(argument.GetType());
-            if (_serviceProvider.GetService(validatorType) is not IValidator validator)
+            if (serviceProvider.GetService(validatorType) is not IValidator validator)
             {
                 continue;
             }
